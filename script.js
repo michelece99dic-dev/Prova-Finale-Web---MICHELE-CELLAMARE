@@ -1,53 +1,67 @@
 let items = JSON.parse(localStorage.getItem('shoppingData')) || [];
 let itemToDelete = null;
 
-// Inizializzazione Modali Bootstrap
+// Modali
 const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
+// Funzione di Sincronizzazione Totale
 const sync = () => {
     localStorage.setItem('shoppingData', JSON.stringify(items));
     render();
+    updateStats(); // <--- CHIAMATA DINAMICA PER LE STATS
 };
+
+// Calcolo Statistiche (Punto 1 e 2 della richiesta)
+function updateStats() {
+    // 1. Numero totale delle spese inserite
+    const totalCount = items.length;
+    
+    // 2. Totale complessivo economico (escludiamo quelli già presi per un calcolo "reale" di cosa manca)
+    // Se preferisci il totale assoluto basta togliere "!item.completed"
+    const totalPrice = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+    // Aggiornamento UI con animazione semplice
+    document.getElementById('countItems').innerText = totalCount;
+    document.getElementById('totalCost').innerText = `€ ${totalPrice.toFixed(2)}`;
+}
 
 function render() {
     const container = document.getElementById('shoppingContainer');
     const filter = document.getElementById('filterCat').value;
     container.innerHTML = '';
-    let total = 0;
 
     items.forEach(item => {
         if (filter !== 'all' && item.category !== filter) return;
 
         const priceTot = item.price * item.qty;
-        if (!item.completed) total += priceTot;
-
         const card = document.createElement('div');
         card.className = `card mb-3 item-card category-${item.category.replace(/\s+/g, '-')} shadow-sm ${item.completed ? 'completed' : ''}`;
+        
         card.innerHTML = `
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
-                    <h5 class="mb-0 fw-bold">${item.name}</h5>
-                    <p class="mb-1 text-muted small">${item.desc || 'Nessun dettaglio'}</p>
-                    <div class="mt-2">
+                    <h5 class="mb-0 fw-bold">${item.name} <small class="text-muted" style="font-size: 0.6em;">${item.category}</small></h5>
+                    <p class="mb-1 text-muted small">${item.desc || 'Nessuna nota'}</p>
+                    <div class="mt-1">
                         <span class="badge bg-light text-dark border">x${item.qty}</span>
-                        <span class="fw-bold text-primary ms-2">€ ${priceTot.toFixed(2)}</span>
+                        <span class="text-primary fw-bold ms-2">€ ${priceTot.toFixed(2)}</span>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-action btn-sm ${item.completed ? 'btn-success' : 'btn-outline-success'}" onclick="toggle(${item.id})">✅</button>
-                    <button class="btn btn-action btn-sm btn-outline-warning" onclick="openEdit(${item.id})">✏️</button>
-                    <button class="btn btn-action btn-sm btn-outline-danger" onclick="askDelete(${item.id})">🗑️</button>
+                <div class="d-flex gap-2 ms-3">
+                    <button class="btn btn-sm ${item.completed ? 'btn-success' : 'btn-outline-success'}" onclick="toggle(${item.id})">✅</button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="openEdit(${item.id})">✏️</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="askDelete(${item.id})">🗑️</button>
                 </div>
             </div>
         `;
         container.appendChild(card);
     });
-
-    document.getElementById('totalDisplay').innerText = `€ ${total.toFixed(2)}`;
 }
 
-// AGGIUNTA
+// LOGICA AZIONI (Tutte richiamano sync())
+
+// 1. AGGIUNTA
 document.getElementById('addForm').onsubmit = (e) => {
     e.preventDefault();
     items.push({
@@ -63,7 +77,7 @@ document.getElementById('addForm').onsubmit = (e) => {
     e.target.reset();
 };
 
-// MODIFICA
+// 2. MODIFICA
 window.openEdit = (id) => {
     const item = items.find(i => i.id === id);
     document.getElementById('editId').value = item.id;
@@ -90,19 +104,15 @@ document.getElementById('editForm').onsubmit = (e) => {
     sync();
 };
 
-// ELIMINAZIONE (CON POP-UP)
-window.askDelete = (id) => {
-    itemToDelete = id;
-    deleteModal.show();
-};
-
+// 3. ELIMINAZIONE
+window.askDelete = (id) => { itemToDelete = id; deleteModal.show(); };
 document.getElementById('confirmDeleteBtn').onclick = () => {
     items = items.filter(i => i.id !== itemToDelete);
     deleteModal.hide();
     sync();
 };
 
-// ALTRE AZIONI
+// 4. ALTRE AZIONI
 window.toggle = (id) => {
     items = items.map(i => i.id === id ? { ...i, completed: !i.completed } : i);
     sync();
@@ -110,7 +120,8 @@ window.toggle = (id) => {
 
 document.getElementById('filterCat').onchange = render;
 document.getElementById('clearAll').onclick = () => {
-    if(confirm("Vuoi davvero svuotare tutto?")) { items = []; sync(); }
+    if(confirm("Svuotare tutto?")) { items = []; sync(); }
 };
 
-render();
+// Init iniziale
+sync();
