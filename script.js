@@ -1,38 +1,48 @@
-// 1. Stato dell'applicazione
-let shoppingItems = [];
+// Stato dell'applicazione - Carica da LocalStorage o crea array vuoto
+let shoppingItems = JSON.parse(localStorage.getItem('myShoppingList')) || [];
 
-// 2. Selettori degli elementi DOM
+// Selettori Form
 const shoppingForm = document.getElementById('shoppingForm');
 const itemNameInput = document.getElementById('itemName');
+const itemPriceInput = document.getElementById('itemPrice');
 const itemQtyInput = document.getElementById('itemQty');
 const itemCategoryInput = document.getElementById('itemCategory');
-const shoppingListUI = document.getElementById('shoppingList');
 
-// Selettori per Riepilogo e Filtri
+// Selettori UI
+const shoppingListUI = document.getElementById('shoppingList');
 const totalItemsUI = document.getElementById('totalItems');
+const completedItemsUI = document.getElementById('completedItems');
+const totalCostUI = document.getElementById('totalCost');
 const searchInput = document.getElementById('searchInput');
 const filterCategory = document.getElementById('filterCategory');
 
-// 3. Funzione per aggiungere un prodotto
+// Funzione per salvare nel LocalStorage
+function saveToStorage() {
+    localStorage.setItem('myShoppingList', JSON.stringify(shoppingItems));
+}
+
+// Aggiunta prodotto
 shoppingForm.addEventListener('submit', (e) => {
-    e.preventDefault(); // Impedisce il ricaricamento della pagina
+    e.preventDefault();
 
     const newItem = {
         id: Date.now(),
         name: itemNameInput.value.trim(),
+        price: parseFloat(itemPriceInput.value) || 0,
         qty: parseInt(itemQtyInput.value),
         category: itemCategoryInput.value,
         completed: false
     };
 
     shoppingItems.push(newItem);
+    saveToStorage();
     renderApp();
-    shoppingForm.reset(); // Pulisce i campi
+    shoppingForm.reset();
+    itemNameInput.focus();
 });
 
-// 4. Funzione per renderizzare la UI (La logica centrale)
+// Renderizzazione Dashboard
 function renderApp() {
-    // Filtriamo i prodotti in base a ricerca e categoria
     const searchTerm = searchInput.value.toLowerCase();
     const activeFilter = filterCategory.value;
 
@@ -42,29 +52,42 @@ function renderApp() {
         return matchesSearch && matchesCategory;
     });
 
-    // Svuotiamo la lista attuale
     shoppingListUI.innerHTML = '';
 
-    // Creiamo gli elementi della lista
     filteredList.forEach(item => {
-        const li = document.createElement('li');
-        li.className = `item-card ${item.completed ? 'completed' : ''}`;
-        li.innerHTML = `
-            <span><strong>${item.name}</strong> (${item.qty}) - <em>${item.category}</em></span>
-            <div class="actions">
-                <button onclick="toggleComplete(${item.id})">✔️</button>
-                <button onclick="deleteItem(${item.id})">🗑️</button>
+        const rowTotal = (item.price * item.qty).toFixed(2);
+        const categoryClass = item.category.replace(/\s+/g, '-'); // Gestione "Tempo libero"
+        
+        const div = document.createElement('div');
+        div.className = `list-group-item d-flex justify-content-between align-items-center item-card category-${categoryClass} ${item.completed ? 'completed bg-light' : ''}`;
+        
+        div.innerHTML = `
+            <div class="ms-2">
+                <h6 class="mb-0">${item.name}</h6>
+                <small class="text-muted">
+                    <span class="badge bg-light text-dark border">${item.category}</span> 
+                    ${item.qty} pz. x ${item.price.toFixed(2)}€ = <strong>${rowTotal}€</strong>
+                </small>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-success" onclick="toggleComplete(${item.id})">
+                    ${item.completed ? '↩️' : '✅'}
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${item.id})">
+                    🗑️
+                </button>
             </div>
         `;
-        shoppingListUI.appendChild(li);
+        shoppingListUI.appendChild(div);
     });
 
     updateSummary();
 }
 
-// 5. Funzioni di utilità (Elimina, Segna come fatto, Riepilogo)
+// Funzioni Azione
 function deleteItem(id) {
     shoppingItems = shoppingItems.filter(item => item.id !== id);
+    saveToStorage();
     renderApp();
 }
 
@@ -73,21 +96,32 @@ function toggleComplete(id) {
         if (item.id === id) return { ...item, completed: !item.completed };
         return item;
     });
+    saveToStorage();
     renderApp();
 }
 
 function updateSummary() {
-    totalItemsUI.innerText = shoppingItems.length;
+    const total = shoppingItems.length;
+    const completed = shoppingItems.filter(i => i.completed).length;
+    const cost = shoppingItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+    totalItemsUI.innerText = total;
+    completedItemsUI.innerText = completed;
+    totalCostUI.innerText = `€ ${cost.toFixed(2)}`;
 }
 
-// 6. Eventi per Ricerca e Filtri
+// Eventi Filtri
 searchInput.addEventListener('input', renderApp);
 filterCategory.addEventListener('change', renderApp);
 
-// Bonus: Pulsante svuota tutto
+// Svuota tutto
 document.getElementById('clearAll').addEventListener('click', () => {
-    if(confirm("Sei sicuro di voler svuotare tutta la lista?")) {
+    if(confirm("Vuoi cancellare definitivamente tutta la lista?")) {
         shoppingItems = [];
+        saveToStorage();
         renderApp();
     }
 });
+
+// Avvio iniziale
+renderApp();
