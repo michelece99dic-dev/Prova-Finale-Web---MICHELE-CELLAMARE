@@ -1,28 +1,24 @@
-// Stato dell'applicazione
 let items = JSON.parse(localStorage.getItem('shoppingData')) || [];
 let itemToDelete = null;
 
-// Inizializzazione Modali
 const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-// Funzione Centrale di Sincronizzazione
+document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('it-IT', { day:'numeric', month:'short', year:'numeric'});
+
 const sync = () => {
     localStorage.setItem('shoppingData', JSON.stringify(items));
     render();
     updateStats();
 };
 
-// Calcolo Statistiche dinamiche
 function updateStats() {
-    const countItems = items.length;
+    const totalCount = items.length;
     const totalPrice = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-    document.getElementById('countItems').innerText = countItems;
+    document.getElementById('countItems').innerText = totalCount;
     document.getElementById('totalCost').innerText = `€ ${totalPrice.toFixed(2)}`;
 }
 
-// Rendering della lista con Filtri (Categoria + Descrizione)
 function render() {
     const container = document.getElementById('shoppingContainer');
     const filterCategory = document.getElementById('filterCat').value;
@@ -30,34 +26,42 @@ function render() {
     
     container.innerHTML = '';
 
-    items.forEach(item => {
-        // Logica filtri combinati
+    const sortedItems = [...items].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed - b.completed;
+        return b.id - a.id;
+    });
+
+    sortedItems.forEach(item => {
         const matchesCategory = (filterCategory === 'all' || item.category === filterCategory);
         const matchesText = item.name.toLowerCase().includes(filterText) || 
                             (item.desc && item.desc.toLowerCase().includes(filterText));
 
         if (matchesCategory && matchesText) {
-            const priceTot = item.price * item.qty;
+            const priceTot = (item.price * item.qty).toFixed(2);
             const card = document.createElement('div');
-            card.className = `card mb-3 item-card category-${item.category.replace(/\s+/g, '-')} shadow-sm ${item.completed ? 'completed' : ''}`;
+            card.className = `item-card p-3 d-flex align-items-center justify-content-between category-${item.category.replace(/\s+/g, '-')} ${item.completed ? 'completed' : ''}`;
             
             card.innerHTML = `
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <h5 class="mb-0 fw-bold">${item.name}</h5>
-                            <span class="badge bg-light text-dark border small">${item.category}</span>
-                        </div>
-                        <p class="mb-1 text-muted small">${item.desc || '<i>Nessuna nota</i>'}</p>
-                        <div class="mt-2">
-                            <span class="text-dark small fw-bold">x${item.qty}</span>
-                            <span class="text-primary fw-bold ms-3">€ ${priceTot.toFixed(2)}</span>
+                <div class="d-flex align-items-center flex-grow-1">
+                    <div class="me-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggle(${item.id})" style="width: 24px; height: 24px; cursor: pointer;">
                         </div>
                     </div>
-                    <div class="d-flex gap-2 ms-3">
-                        <button class="btn btn-sm ${item.completed ? 'btn-success' : 'btn-outline-success'}" onclick="toggle(${item.id})" title="Segna come preso">✅</button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="openEdit(${item.id})" title="Modifica">✏️</button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="askDelete(${item.id})" title="Elimina">🗑️</button>
+                    <div>
+                        <span class="category-pill mb-1 d-inline-block">${item.category}</span>
+                        <h5 class="mb-0 fw-bold">${item.name}</h5>
+                        <p class="mb-0 text-muted small">${item.desc || ''}</p>
+                    </div>
+                </div>
+                <div class="text-end d-flex align-items-center">
+                    <div class="me-3">
+                        <div class="fw-800 text-dark">€ ${priceTot}</div>
+                        <div class="text-muted small">${item.qty} pz</div>
+                    </div>
+                    <div class="btn-group shadow-sm rounded-3 overflow-hidden">
+                        <button class="btn btn-light btn-sm px-3 border-end" onclick="openEdit(${item.id})">✏️</button>
+                        <button class="btn btn-light btn-sm px-3 text-danger" onclick="askDelete(${item.id})">🗑️</button>
                     </div>
                 </div>
             `;
@@ -65,17 +69,14 @@ function render() {
         }
     });
 
-    if (container.innerHTML === '') {
-        container.innerHTML = '<div class="text-center p-5 text-muted">Nessun prodotto trovato.</div>';
+    if (items.length === 0) {
+        container.innerHTML = `<div class="text-center p-5 text-muted">La lista è vuota.</div>`;
     }
 }
 
-// --- GESTIONE EVENTI ---
-
-// Aggiunta Prodotto
 document.getElementById('addForm').onsubmit = (e) => {
     e.preventDefault();
-    items.push({
+    const newItem = {
         id: Date.now(),
         name: document.getElementById('addName').value.trim(),
         desc: document.getElementById('addDesc').value.trim(),
@@ -83,16 +84,14 @@ document.getElementById('addForm').onsubmit = (e) => {
         qty: parseInt(document.getElementById('addQty').value) || 1,
         category: document.getElementById('addCategory').value,
         completed: false
-    });
+    };
+    items.unshift(newItem); 
     sync();
     e.target.reset();
 };
 
-// Modifica Prodotto (Apertura Modale)
 window.openEdit = (id) => {
     const item = items.find(i => i.id === id);
-    if (!item) return;
-
     document.getElementById('editId').value = item.id;
     document.getElementById('editName').value = item.name;
     document.getElementById('editDesc').value = item.desc;
@@ -102,7 +101,6 @@ window.openEdit = (id) => {
     editModal.show();
 };
 
-// Salvataggio Modifiche
 document.getElementById('editForm').onsubmit = (e) => {
     e.preventDefault();
     const id = parseInt(document.getElementById('editId').value);
@@ -118,35 +116,22 @@ document.getElementById('editForm').onsubmit = (e) => {
     sync();
 };
 
-// Eliminazione
-window.askDelete = (id) => {
-    itemToDelete = id;
-    deleteModal.show();
-};
-
+window.askDelete = (id) => { itemToDelete = id; deleteModal.show(); };
 document.getElementById('confirmDeleteBtn').onclick = () => {
     items = items.filter(i => i.id !== itemToDelete);
     deleteModal.hide();
     sync();
 };
 
-// Toggle Completato
 window.toggle = (id) => {
     items = items.map(i => i.id === id ? { ...i, completed: !i.completed } : i);
     sync();
 };
 
-// Filtri in tempo reale
 document.getElementById('filterCat').onchange = render;
 document.getElementById('searchText').oninput = render;
-
-// Svuota tutto
 document.getElementById('clearAll').onclick = () => {
-    if (confirm("Vuoi davvero cancellare TUTTI i prodotti?")) {
-        items = [];
-        sync();
-    }
+    if(confirm("Vuoi cancellare tutto?")) { items = []; sync(); }
 };
 
-// Avvio iniziale
 sync();
