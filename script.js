@@ -1,127 +1,97 @@
-// Stato dell'applicazione - Carica da LocalStorage o crea array vuoto
-let shoppingItems = JSON.parse(localStorage.getItem('myShoppingList')) || [];
+let items = JSON.parse(localStorage.getItem('shoppingData')) || [];
+const modalElement = new bootstrap.Modal(document.getElementById('editModal'));
 
-// Selettori Form
-const shoppingForm = document.getElementById('shoppingForm');
-const itemNameInput = document.getElementById('itemName');
-const itemPriceInput = document.getElementById('itemPrice');
-const itemQtyInput = document.getElementById('itemQty');
-const itemCategoryInput = document.getElementById('itemCategory');
+// Salvataggio e Render
+const sync = () => {
+    localStorage.setItem('shoppingData', JSON.stringify(items));
+    render();
+};
 
-// Selettori UI
-const shoppingListUI = document.getElementById('shoppingList');
-const totalItemsUI = document.getElementById('totalItems');
-const completedItemsUI = document.getElementById('completedItems');
-const totalCostUI = document.getElementById('totalCost');
-const searchInput = document.getElementById('searchInput');
-const filterCategory = document.getElementById('filterCategory');
+function render() {
+    const container = document.getElementById('shoppingContainer');
+    const filter = document.getElementById('filterCat').value;
+    container.innerHTML = '';
+    let total = 0;
 
-// Funzione per salvare nel LocalStorage
-function saveToStorage() {
-    localStorage.setItem('myShoppingList', JSON.stringify(shoppingItems));
-}
+    items.forEach(item => {
+        if (filter !== 'all' && item.category !== filter) return;
 
-// Aggiunta prodotto
-shoppingForm.addEventListener('submit', (e) => {
-    e.preventDefault();
+        const priceTot = item.price * item.qty;
+        if (!item.completed) total += priceTot;
 
-    const newItem = {
-        id: Date.now(),
-        name: itemNameInput.value.trim(),
-        price: parseFloat(itemPriceInput.value) || 0,
-        qty: parseInt(itemQtyInput.value),
-        category: itemCategoryInput.value,
-        completed: false
-    };
-
-    shoppingItems.push(newItem);
-    saveToStorage();
-    renderApp();
-    shoppingForm.reset();
-    itemNameInput.focus();
-});
-
-// Renderizzazione Dashboard
-function renderApp() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const activeFilter = filterCategory.value;
-
-    const filteredList = shoppingItems.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchTerm);
-        const matchesCategory = activeFilter === 'all' || item.category === activeFilter;
-        return matchesSearch && matchesCategory;
-    });
-
-    shoppingListUI.innerHTML = '';
-
-    filteredList.forEach(item => {
-        const rowTotal = (item.price * item.qty).toFixed(2);
-        const categoryClass = item.category.replace(/\s+/g, '-'); // Gestione "Tempo libero"
-        
-        const div = document.createElement('div');
-        div.className = `list-group-item d-flex justify-content-between align-items-center item-card category-${categoryClass} ${item.completed ? 'completed bg-light' : ''}`;
-        
-        div.innerHTML = `
-            <div class="ms-2">
-                <h6 class="mb-0">${item.name}</h6>
-                <small class="text-muted">
-                    <span class="badge bg-light text-dark border">${item.category}</span> 
-                    ${item.qty} pz. x ${item.price.toFixed(2)}€ = <strong>${rowTotal}€</strong>
-                </small>
-            </div>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline-success" onclick="toggleComplete(${item.id})">
-                    ${item.completed ? '↩️' : '✅'}
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${item.id})">
-                    🗑️
-                </button>
+        const card = document.createElement('div');
+        card.className = `card mb-3 item-card category-${item.category.replace(' ', '-')} shadow-sm ${item.completed ? 'completed' : ''}`;
+        card.innerHTML = `
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="flex-grow-1">
+                    <h5 class="mb-0 fw-bold text-dark">${item.name}</h5>
+                    <p class="mb-1 text-muted small">${item.desc || 'Nessuna nota'}</p>
+                    <div class="d-flex gap-2 align-items-center mt-2">
+                        <span class="badge rounded-pill bg-light text-dark border">x${item.qty}</span>
+                        <span class="fw-bold text-primary">€ ${priceTot.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-action btn-sm ${item.completed ? 'btn-success' : 'btn-outline-success'}" onclick="toggle(${item.id})">✔️</button>
+                    <button class="btn btn-action btn-sm btn-outline-warning" onclick="openEdit(${item.id})">✏️</button>
+                    <button class="btn btn-action btn-sm btn-outline-danger" onclick="remove(${item.id})">🗑️</button>
+                </div>
             </div>
         `;
-        shoppingListUI.appendChild(div);
+        container.appendChild(card);
     });
 
-    updateSummary();
+    document.getElementById('totalDisplay').innerText = `€ ${total.toFixed(2)}`;
 }
 
-// Funzioni Azione
-function deleteItem(id) {
-    shoppingItems = shoppingItems.filter(item => item.id !== id);
-    saveToStorage();
-    renderApp();
-}
+// AZIONI AGGIUNTA
+document.getElementById('addForm').onsubmit = (e) => {
+    e.preventDefault();
+    const newItem = {
+        id: Date.now(),
+        name: document.getElementById('addName').value,
+        desc: document.getElementById('addDesc').value,
+        price: parseFloat(document.getElementById('addPrice').value) || 0,
+        qty: parseInt(document.getElementById('addQty').value) || 1,
+        category: document.getElementById('addCategory').value,
+        completed: false
+    };
+    items.push(newItem);
+    sync();
+    e.target.reset();
+};
 
-function toggleComplete(id) {
-    shoppingItems = shoppingItems.map(item => {
-        if (item.id === id) return { ...item, completed: !item.completed };
-        return item;
-    });
-    saveToStorage();
-    renderApp();
-}
+// AZIONI MODIFICA (POP-UP)
+window.openEdit = (id) => {
+    const item = items.find(i => i.id === id);
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editName').value = item.name;
+    document.getElementById('editDesc').value = item.desc;
+    document.getElementById('editPrice').value = item.price;
+    document.getElementById('editQty').value = item.qty;
+    document.getElementById('editCategory').value = item.category;
+    modalElement.show();
+};
 
-function updateSummary() {
-    const total = shoppingItems.length;
-    const completed = shoppingItems.filter(i => i.completed).length;
-    const cost = shoppingItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
+document.getElementById('editForm').onsubmit = (e) => {
+    e.preventDefault();
+    const id = parseInt(document.getElementById('editId').value);
+    items = items.map(item => item.id === id ? {
+        ...item,
+        name: document.getElementById('editName').value,
+        desc: document.getElementById('editDesc').value,
+        price: parseFloat(document.getElementById('editPrice').value),
+        qty: parseInt(document.getElementById('editQty').value),
+        category: document.getElementById('editCategory').value
+    } : item);
+    modalElement.hide();
+    sync();
+};
 
-    totalItemsUI.innerText = total;
-    completedItemsUI.innerText = completed;
-    totalCostUI.innerText = `€ ${cost.toFixed(2)}`;
-}
+// UTILS
+window.remove = (id) => { if(confirm("Rimuovere?")) { items = items.filter(i => i.id !== id); sync(); } };
+window.toggle = (id) => { items = items.map(i => i.id === id ? { ...i, completed: !i.completed } : i); sync(); };
+document.getElementById('filterCat').onchange = render;
+document.getElementById('clearAll').onclick = () => { if(confirm("Svuotare?")) { items = []; sync(); } };
 
-// Eventi Filtri
-searchInput.addEventListener('input', renderApp);
-filterCategory.addEventListener('change', renderApp);
-
-// Svuota tutto
-document.getElementById('clearAll').addEventListener('click', () => {
-    if(confirm("Vuoi cancellare definitivamente tutta la lista?")) {
-        shoppingItems = [];
-        saveToStorage();
-        renderApp();
-    }
-});
-
-// Avvio iniziale
-renderApp();
+render();
