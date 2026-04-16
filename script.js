@@ -1,27 +1,18 @@
 let items = JSON.parse(localStorage.getItem('shoppingData')) || [];
 let itemToDelete = null;
 
-// Modali
 const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-// Funzione di Sincronizzazione Totale
 const sync = () => {
     localStorage.setItem('shoppingData', JSON.stringify(items));
     render();
-    updateStats(); // <--- CHIAMATA DINAMICA PER LE STATS
+    updateStats();
 };
 
-// Calcolo Statistiche (Punto 1 e 2 della richiesta)
 function updateStats() {
-    // 1. Numero totale delle spese inserite
     const totalCount = items.length;
-    
-    // 2. Totale complessivo economico (escludiamo quelli già presi per un calcolo "reale" di cosa manca)
-    // Se preferisci il totale assoluto basta togliere "!item.completed"
     const totalPrice = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-    // Aggiornamento UI con animazione semplice
     document.getElementById('countItems').innerText = totalCount;
     document.getElementById('totalCost').innerText = `€ ${totalPrice.toFixed(2)}`;
 }
@@ -42,8 +33,8 @@ function render() {
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                     <h5 class="mb-0 fw-bold">${item.name} <small class="text-muted" style="font-size: 0.6em;">${item.category}</small></h5>
-                    <p class="mb-1 text-muted small">${item.desc || 'Nessuna nota'}</p>
-                    <div class="mt-1">
+                    <p class="mb-1 text-muted small">${item.desc || ''}</p>
+                    <div>
                         <span class="badge bg-light text-dark border">x${item.qty}</span>
                         <span class="text-primary fw-bold ms-2">€ ${priceTot.toFixed(2)}</span>
                     </div>
@@ -59,9 +50,7 @@ function render() {
     });
 }
 
-// LOGICA AZIONI (Tutte richiamano sync())
-
-// 1. AGGIUNTA
+// Eventi Form e Filtri
 document.getElementById('addForm').onsubmit = (e) => {
     e.preventDefault();
     items.push({
@@ -77,7 +66,6 @@ document.getElementById('addForm').onsubmit = (e) => {
     e.target.reset();
 };
 
-// 2. MODIFICA
 window.openEdit = (id) => {
     const item = items.find(i => i.id === id);
     document.getElementById('editId').value = item.id;
@@ -104,7 +92,6 @@ document.getElementById('editForm').onsubmit = (e) => {
     sync();
 };
 
-// 3. ELIMINAZIONE
 window.askDelete = (id) => { itemToDelete = id; deleteModal.show(); };
 document.getElementById('confirmDeleteBtn').onclick = () => {
     items = items.filter(i => i.id !== itemToDelete);
@@ -112,16 +99,12 @@ document.getElementById('confirmDeleteBtn').onclick = () => {
     sync();
 };
 
-// 4. ALTRE AZIONI
 window.toggle = (id) => {
     items = items.map(i => i.id === id ? { ...i, completed: !i.completed } : i);
     sync();
 };
 
 document.getElementById('filterCat').onchange = render;
-document.getElementById('clearAll').onclick = () => {
-    if(confirm("Svuotare tutto?")) { items = []; sync(); }
-};
+document.getElementById('clearAll').onclick = () => { if(confirm("Vuoi svuotare tutto?")) { items = []; sync(); } };
 
-// Init iniziale
 sync();
