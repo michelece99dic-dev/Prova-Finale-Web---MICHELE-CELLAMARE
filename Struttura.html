@@ -3,29 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Mia Lista della Spesa</title>
+    <title>Dashboard Spesa Smart</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>🛒 Spesa Smart</h1>
-            <p>Non dimenticare più nulla!</p>
+    <div class="dashboard-container">
+        <header class="main-header">
+            <h1>🛒 Spesa Pro Dashboard</h1>
+            <p id="currentDate"></p>
         </header>
 
-        <main>
-            <div class="input-section">
-                <input type="text" id="itemInput" placeholder="Aggiungi un prodotto..." aria-label="Nuovo prodotto">
-                <button id="addBtn">Aggiungi</button>
+        <section class="summary-section">
+            <div class="card">
+                <h3>Totale Prodotti</h3>
+                <p id="totalItems">0</p>
             </div>
+            <div class="card">
+                <h3>Budget Stimato</h3>
+                <p id="totalCost">€ 0.00</p>
+            </div>
+        </section>
 
+        <section class="input-section">
+            <form id="shoppingForm">
+                <input type="text" id="itemName" placeholder="Cosa devi comprare?" required>
+                <input type="number" id="itemQty" placeholder="Qtà" min="1" value="1">
+                <select id="itemCategory">
+                    <option value="Alimentari">Alimentari</option>
+                    <option value="Casa">Casa</option>
+                    <option value="Igiene">Igiene</option>
+                    <option value="Altro">Altro</option>
+                </select>
+                <button type="submit" id="addBtn">Aggiungi</button>
+            </form>
+        </section>
+
+        <section class="filter-section">
+            <input type="text" id="searchInput" placeholder="Cerca nella lista...">
+            <select id="filterCategory">
+                <option value="all">Tutte le categorie</option>
+                <option value="Alimentari">Alimentari</option>
+                <option value="Casa">Casa</option>
+                <option value="Igiene">Igiene</option>
+            </select>
+        </section>
+
+        <section class="list-section">
             <ul id="shoppingList">
                 </ul>
-        </main>
+        </section>
 
-        <footer>
-            <button id="clearList" class="btn-secondary">Svuota lista</button>
+        <footer class="actions">
+            <button id="clearAll" class="danger-btn">Svuota Lista</button>
         </footer>
     </div>
 
